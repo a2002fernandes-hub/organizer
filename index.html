@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5b5fc7">
+<title>Organizer</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root { color-scheme: light dark; }
+  html, body { margin: 0; height: 100%; background: #f6f6fb; font: 15px/1.4 system-ui, -apple-system, Roboto, sans-serif; }
+  @media (prefers-color-scheme: dark) { html, body { background: #121218; color: #ececf4; } }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+  #help { position: fixed; left: 16px; right: 16px; bottom: 24px; background: #222235; color: #fff; border-radius: 14px; padding: 14px 16px; z-index: 2; }
+  #help a { color: #a5a8ee; font-weight: 600; }
+  #help[hidden] { display: none; }
+</style>
+</head>
+<body>
+<!-- The app itself runs inside this frame (Google Apps Script, "Only myself").
+     This page holds no data. Without the owner's Google sign-in, the frame shows only a Google sign-in / no-access page. -->
+<iframe id="app" title="Organizer" allow="clipboard-write"></iframe>
+<div id="help" hidden>
+  The app did not load. Google may want you to sign in first.<br>
+  <a id="direct" href="#" target="_blank" rel="noopener">Open the app directly</a>, sign in, then come back here.
+</div>
+<script>
+  // ⬇⬇ Paste your Apps Script "Web app URL" here (it ends with /exec) ⬇⬇
+  const APP_URL = 'https://script.google.com/macros/s/AKfycbwWylsv-WPsh-YX85HwHH_zQ3-mA9yodaHs-X5w2elkCJUH8wEMygTdCbOg0z8dpoj7/exec';
+
+  const frame = document.getElementById('app'), help = document.getElementById('help');
+  // Pass ?v=today (from the notifications) on to the app.
+  frame.src = APP_URL + location.search;
+  document.getElementById('direct').href = APP_URL;
+  let ready = false;
+  addEventListener('message', e => { if (e.data && e.data.organizer === 'ready') { ready = true; help.hidden = true; } });
+  setTimeout(() => { if (!ready) help.hidden = false; }, 15000);
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>

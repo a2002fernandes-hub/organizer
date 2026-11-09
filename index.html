@@ -16,6 +16,14 @@
   #help { position: fixed; left: 16px; right: 16px; bottom: 24px; background: #222235; color: #fff; border-radius: 14px; padding: 14px 16px; z-index: 2; }
   #help a { color: #a5a8ee; font-weight: 600; }
   #help[hidden] { display: none; }
+  /* F49: save / share a mosaic made in the app */
+  #save { position: fixed; inset: 0; background: rgba(10,10,20,.92); z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; }
+  #save[hidden] { display: none; }
+  #save img { max-width: 100%; max-height: 62vh; border-radius: 10px; }
+  #save .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  #save button, #save a { font: 600 15px system-ui, sans-serif; padding: 12px 18px; border-radius: 12px; border: 0; background: #5b5fc7; color: #fff; text-decoration: none; cursor: pointer; }
+  #save .ghost { background: #2c2c3a; }
+  #save p { color: #cfcfe0; margin: 0; font-size: 13px; text-align: center; }
 </style>
 </head>
 <body>
@@ -25,6 +33,11 @@
 <div id="help" hidden>
   The app did not load. Google may want you to sign in first.<br>
   <a id="direct" href="#" target="_blank" rel="noopener">Open the app directly</a>, sign in, then come back here.
+</div>
+<div id="save" hidden>
+  <img id="saveImg" alt="Album mosaic">
+  <div class="row"><button id="saveShare">Share or save</button><a id="saveDl" download>Download</a><button id="saveClose" class="ghost">Close</button></div>
+  <p>"Share or save" opens the Android share menu (Save to gallery / Files, WhatsApp…).</p>
 </div>
 <script>
   // ⬇⬇ Paste your Apps Script "Web app URL" here (it ends with /exec) ⬇⬇
@@ -38,6 +51,33 @@
   addEventListener('message', e => { if (e.data && e.data.organizer === 'ready') { ready = true; help.hidden = true; } });
   setTimeout(() => { if (!ready) help.hidden = false; }, 15000);
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+
+  // F49: the app sends a mosaic picture here, because the app frame (Google) cannot open the share menu itself.
+  const save = document.getElementById('save');
+  let saveFile = null, saveUrl = null;
+  async function shareFile(f) {
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: f.name }); return true; }
+    return false;
+  }
+  function showSave(f) {
+    saveFile = f; if (saveUrl) URL.revokeObjectURL(saveUrl); saveUrl = URL.createObjectURL(f);
+    document.getElementById('saveImg').src = saveUrl;
+    const dl = document.getElementById('saveDl'); dl.href = saveUrl; dl.download = f.name;
+    document.getElementById('saveShare').hidden = !(navigator.canShare && navigator.canShare({ files: [f] }));
+    save.hidden = false;
+  }
+  document.getElementById('saveShare').onclick = async () => { try { if (await shareFile(saveFile)) save.hidden = true; } catch (e) { } };
+  document.getElementById('saveClose').onclick = () => { save.hidden = true; };
+  addEventListener('message', async e => {
+    const d = e.data;
+    if (!d || d.organizer !== 'mosaic' || !(d.blob instanceof Blob)) return;
+    let host = ''; try { host = new URL(e.origin).hostname; } catch (_) { }
+    if (!/(^|\.)googleusercontent\.com$/.test(host) && !/(^|\.)google\.com$/.test(host)) return;
+    try { e.source.postMessage({ organizer: 'mosaic-ok' }, '*'); } catch (_) { }
+    const f = new File([d.blob], d.name || 'Mosaic.jpg', { type: d.blob.type || 'image/jpeg' });
+    try { if (await shareFile(f)) return; } catch (err) { if (err && err.name === 'AbortError') return; }
+    showSave(f); // no share menu yet (Android wants a new tap, or a computer): show the picture with buttons
+  });
 </script>
 </body>
 </html>
